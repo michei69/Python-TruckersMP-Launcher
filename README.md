@@ -1,4 +1,4 @@
-# SOME CODE IS TAKEN FROM [https://github.com/truckersmp-cli/truckersmp-cli](TRUCKERSMP-CLI)
+# SOME CODE IS TAKEN FROM [TRUCKERSMP-CLI](https://github.com/truckersmp-cli/truckersmp-cli)
 
 # Python TruckersMP Launcher
 
