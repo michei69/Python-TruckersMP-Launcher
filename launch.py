@@ -186,7 +186,8 @@ async def check(gamedir, gameexe, TMPdir):
         print("No files to download")
     
     await download_files(DOWNLOADURL, dlfiles)
-    game_starter(gamedir, gameexe, f"{TMPdir}\\core_ets2mp.dll")
+    if not "--download-only" in sys.argv:
+        game_starter(gamedir, gameexe, f"{TMPdir}\\core_ets2mp.dll")
     EndingTime = time.time()
     print("Time taken: "+str(round(EndingTime-StartingTime,3)))
 
