@@ -2,7 +2,13 @@
 #####Extra stuff used by the launcher#####
 ##########################################
 import ctypes
+import ctypes.wintypes as wintypes
 
+byref = ctypes.byref
+sizeof = ctypes.sizeof
+
+BOOL = wintypes.BOOL
+WCHAR = wintypes.WCHAR
 WORD = ctypes.c_ushort
 DWORD = ctypes.c_ulong
 LPBYTE = ctypes.POINTER(ctypes.c_ubyte)
@@ -11,10 +17,10 @@ HANDLE = ctypes.c_void_p
 LPCTSTR = ctypes.POINTER(ctypes.c_char)
 class SECURITY_ATTRIBUTES(ctypes.Structure):
     _fields_ = [("nLength",                         DWORD),
-                ("lpSecurityDescriptor",            ctypes.wintypes.LPVOID),
-                ("bInheritHandle",                  ctypes.wintypes.BOOL)]
+                ("lpSecurityDescriptor",            wintypes.LPVOID),
+                ("bInheritHandle",                  BOOL)]
 LPSECURITY_ATTRIBUTES = ctypes.POINTER(SECURITY_ATTRIBUTES)
-LPTHREAD_START_ROUTINE = ctypes.wintypes.LPVOID
+LPTHREAD_START_ROUTINE = wintypes.LPVOID
 class STARTUPINFO(ctypes.Structure):
     _fields_ = [
     ("cb", DWORD),

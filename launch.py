@@ -4,9 +4,6 @@
 import json
 import sys
 import os
-import urllib.request
-import urllib.parse
-import http.client
 import hashlib
 import time
 import aiohttp
@@ -19,9 +16,8 @@ from extra import *
 StartingTime = time.time()
 
 UPDATELINK = "https://update.ets2mp.com/files.json"
-dir = os.path.dirname(os.path.realpath(__file__))+"\\files" #what
-dir = "C:\\ProgramData\\TruckersMP"
-DownloadUrl = "download.ets2mp.com"
+#dir = os.path.dirname(os.path.realpath(__file__))+"\\files" #what
+DOWNLOADURL = "download.ets2mp.com"
 
 def check_hash(path, digest, hashobj):
     """
@@ -49,20 +45,19 @@ def game_starter(gamedir: str, gameexe: str, dllpath: str): # prototype of a gam
     secAtr1 = SECURITY_ATTRIBUTES()
     secAtr2 = SECURITY_ATTRIBUTES()
 
-    os.environ["SteamGameId"] = "227300"
-    os.environ["SteamAppId"] = "227300"
+    os.environ["SteamGameId"] = "227300" # 227300 is ETS2 game id
+    os.environ["SteamAppId"] = "227300" # must set the app id aswell
 
-    proc = kernel32.CreateProcessW(gamedir + gameexe, "C:\\Users\\Calculator\\Desktop\\autolaunch\\autoLauncher.exe ", ctypes.byref(secAtr1), ctypes.byref(secAtr2), ctypes.wintypes.BOOL(False), 0x4, 0, gamedir, ctypes.byref(startupinfo), ctypes.byref(procinfo))
+    proc = kernel32.CreateProcessW(gamedir + gameexe, None, byref(secAtr1), byref(secAtr2), BOOL(False), 0x4, 0, gamedir, byref(startupinfo), byref(procinfo))
     if not proc:
         raise FileNotFoundError("Could not start Euro Truck Simulator 2") # could make this better ngl 
     
     proc = procinfo.hProcess
-    pathBytes = dllpath
-    intPtr = kernel32.VirtualAllocEx(proc, 0, (len(pathBytes) + 1) * ctypes.sizeof(ctypes.wintypes.WCHAR), 0x1000, 0x40)
+    intPtr = kernel32.VirtualAllocEx(proc, 0, (len(dllpath) + 1) * sizeof(WCHAR), 0x1000, 0x40)
     if intPtr == 0:
         sys.exit("Could not allocate memory") # TODO: again, same thing
     
-    flag = kernel32.WriteProcessMemory(proc, intPtr, pathBytes, (len(pathBytes) + 1) * ctypes.sizeof(ctypes.wintypes.WCHAR), None)
+    flag = kernel32.WriteProcessMemory(proc, intPtr, dllpath, (len(dllpath) + 1) * sizeof(WCHAR), None)
     if not flag:
         sys.exit("Could not write memory") # TODO: at this point i think i just need to make an error handler rlly
     
@@ -74,8 +69,8 @@ def game_starter(gamedir: str, gameexe: str, dllpath: str): # prototype of a gam
     
     kernel32.WaitForSingleObject(anotherIntPtr, -1) #wait 10 sec
     num = DWORD(0)
-    kernel32.GetExitCodeThread(anotherIntPtr, ctypes.byref(num))
-    print(num)
+    kernel32.GetExitCodeThread(anotherIntPtr, byref(num))
+    # print(num) # exitcode
     if num == 0x0:
         sys.exit("Initialization of client has failed") # TODO: current state: crying
     
@@ -83,25 +78,23 @@ def game_starter(gamedir: str, gameexe: str, dllpath: str): # prototype of a gam
     kernel32.FreeLibrary(HANDLE(hKernel))
     kernel32.ResumeThread(procinfo.hThread)
 
-async def download_file(url, dest, filename):
+    print("Successfully started game")
+
+async def download_file(url: str, dest: str, filename: str):
     # print("a") # testing this function 
     startTime = time.time()
     async with aiohttp.ClientSession() as sess:
         async with sess.get(url) as res:
             data = await res.read()
-            async with aiofiles.open(dest, "ba") as f:
+            async with aiofiles.open(dest, "wb") as f:
                 await f.write(data)
     return f"[{round(time.time() - startTime, 2)}sec] Finished downloading {filename}"
 
 # @asyncio.coroutine
-async def download_files(host, files_to_download, progress_count=None):
-    # print("mergi")
-    # pylint: disable=too-many-branches,too-many-locals,too-many-statements
-
+async def download_files(host: str, files_to_download: list[str]):
     # TODO: refactor this in asyncio -- doing this rn 24/12/2021 21:04 -- i think its done (21:51)
 
-    file_count = progress_count[0] if progress_count else 1
-    num_of_files = progress_count[1] if progress_count else len(files_to_download)
+    file_count = 1
     try:
         tasks = []
         while len(files_to_download) > 0:
@@ -121,7 +114,7 @@ async def download_files(host, files_to_download, progress_count=None):
         for file in asyncio.as_completed(tasks):
             tempres = await file
             print(tempres)
-        # OLD IMPLEMENTATION
+        # OLD IMPLEMENTATION -- using requests lib
         #     while len(files_to_download) > 0:
         #         path, dest, md5 = files_to_download[0]
         #         md5hash = hashlib.md5()
@@ -143,23 +136,23 @@ async def download_files(host, files_to_download, progress_count=None):
         #         del files_to_download[0]
 
         #         file_count += 1
-    # TODO: fix try-except for aiohttp and aiofiles
-    except (OSError, http.client.HTTPException) as ex:
+    except (OSError, aiohttp.client.HTTPException) as ex:
         print("Failed to download https://{}{}: {}}".format(host, path, ex))
         print("Trying again")
         check()
 
     return True
 
-def check():
-    if not os.path.isdir(dir):
-        print("Creating directories")
-        os.makedirs(dir)
+async def check(gamedir, gameexe, TMPdir):
+    if not os.path.isdir(TMPdir):
+        print(f"Creating TruckersMP dir: {TMPdir}")
+        os.makedirs(TMPdir)
 
     try:
-        with urllib.request.urlopen(UPDATELINK) as f_in: # TODO: rewrite this using aiohttp
-            files_json = f_in.read()
-    except OSError as ex:
+        async with aiohttp.ClientSession() as sess:
+            async with sess.get(UPDATELINK) as thing:
+                files_json = await thing.read()
+    except (OSError, aiohttp.client.HTTPException) as ex:
         sys.exit("Failed to download files.json: {}".format(ex))
 
     modfiles = []
@@ -170,12 +163,11 @@ def check():
         if len(modfiles) == 0:
             raise ValueError("File list is empty")
     except ValueError as ex:
-        sys.exit("""Failed to parse files.json: {}""".format(ex))
+        sys.exit(f"Failed to parse files.json: {ex}")
 
     dlfiles = []
-
     for md5, jsonfilepath in modfiles:
-        modfilepath = os.path.join(dir, jsonfilepath[1:])
+        modfilepath = os.path.join(TMPdir, jsonfilepath[1:])
         if not os.path.isfile(modfilepath):
             dlfiles.append(("/files" + jsonfilepath, modfilepath, md5))
             continue
@@ -183,21 +175,23 @@ def check():
             if not check_hash(modfilepath, md5, hashlib.md5()):
                 dlfiles.append(("/files" + jsonfilepath, modfilepath, md5))
         except OSError as ex:
-            sys.exit("Failed to read {}: {}".format(modfilepath, ex))
+            sys.exit(f"Failed to read {modfilepath}: {ex}")
     
     if len(dlfiles) > 0:
         message_dlfiles = "Files to download:\n"
         for path, _, _ in dlfiles:
-            message_dlfiles += "  {}\n".format(path)
+            message_dlfiles += f"  {path}\n"
         print(message_dlfiles.rstrip())
     else:
         print("No files to download")
     
-    asyncio.run(download_files(DownloadUrl, dlfiles))
-    #subproc.Popen([os.path.join(os.path.dirname(__file__) or '.','autoLauncher.exe')]) # TODO: get rid of the trash launcher -- just started (23:06 24 dec 2021) -- done, refactoring as of 15:57 25 dec 2021
-    game_starter("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Euro Truck Simulator 2\\bin\\win_x64\\","eurotrucks2.exe","C:\\ProgramData\\TruckersMP\\core_ets2mp.dll")
-    end = time.time()
-    print("Time taken: "+str(round(end-StartingTime,3)))
+    await download_files(DOWNLOADURL, dlfiles)
+    game_starter(gamedir, gameexe, f"{TMPdir}\\core_ets2mp.dll")
+    EndingTime = time.time()
+    print("Time taken: "+str(round(EndingTime-StartingTime,3)))
 
 if __name__ == "__main__": 
-    check()
+    GameDir = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Euro Truck Simulator 2\\bin\\win_x64\\" # TODO: get this off of registry
+    GameExec = "eurotrucks2.exe" # TODO: make this interchangable between ETS2 and ATS
+    TMPDir = "C:\\ProgramData\\TruckersMP" # TODO: make TMP folder movable
+    asyncio.run(check(GameDir, GameExec, TMPDir))
