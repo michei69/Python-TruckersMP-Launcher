@@ -1,3 +1,5 @@
+# SOME CODE IS TAKEN FROM (TRUCKERSMP-CLI)[https://github.com/truckersmp-cli/truckersmp-cli]
+
 # Python TruckersMP Launcher
 
 This was a side project of mine during free time since I usually play TruckersMP on Euro Truck Simulator 2
