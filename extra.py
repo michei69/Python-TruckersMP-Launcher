@@ -1,3 +1,6 @@
+##########################################
+#####Extra stuff used by the launcher#####
+##########################################
 import ctypes
 
 WORD = ctypes.c_ushort
